@@ -11,11 +11,21 @@
     precision mediump float;
     varying vec4 xyzt;
     void main(void) {
-        float r = sin(xyzt[0]*5.0)/2.0+0.5;
-        float g = sin(xyzt[1]*5.0)/2.0+0.5;
-        float b = sin(xyzt[2]*5.0)/2.0+0.5;
-        float t = sin(xyzt[3]*5.0)/2.0+0.5;
-        gl_FragColor = vec4(r, g, b, t);
+        // float r = sin(xyzt[0]*1.0)/2.0+0.5;
+        // float g = sin(xyzt[1]*1.0)/2.0+0.5;
+        // float b = sin(xyzt[2]*1.0)/2.0+0.5;
+        // float t = sin(xyzt[3]*4.0)/2.0+0.5;
+        // gl_FragColor = vec4(r, g, b, t);
+
+        if(abs(xyzt[3])<2.0) {
+            gl_FragColor = vec4(0.0, 1.0, 0.0, 0.0);
+        } else if(xyzt[3] < 0.0){
+             gl_FragColor = vec4(1.0, 0.0, 0.0, 0.5);
+        } else {
+            gl_FragColor = vec4(1.0, 1.0, 1.0, 0.5);
+        }
+
+            
     }
 </script>
 
@@ -221,13 +231,13 @@
             a3 *= n;
             a4 *= n;
 
-            vertices.push(a1-a2/50.0);
-            vertices.push(a2+a1/50.0);
-            vertices.push(a3);
-            vertices.push(a4);
+            vertices.push(a1*1.01);
+            vertices.push(a2*1.01);
+            vertices.push(a3*1.01);
+            vertices.push(a4*1.01);
 
-            vertices.push(a1+a2/50.0);
-            vertices.push(a2-a1/50.0);
+            vertices.push(a1);
+            vertices.push(a2);
             vertices.push(a3);
             vertices.push(a4);
 
