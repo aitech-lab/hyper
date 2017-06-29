@@ -1,0 +1,339 @@
+
+<html>
+
+<head>
+<title>Learning WebGL &mdash; lesson 1</title>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+
+<script type="text/javascript" src="gl-matrix-min.js"></script>
+
+<script id="shader-fs" type="x-shader/x-fragment">
+    precision mediump float;
+    varying vec4 xyzt;
+    void main(void) {
+        float r = sin(xyzt[0]/10.0*3.14159)/2.0+0.5;
+        float g = sin(xyzt[1]/10.0*3.14159)/2.0+0.5;
+        float b = sin(xyzt[2]/10.0*3.14159)/2.0+0.5;
+        float t = sin(xyzt[3]/10.0*3.14159)/2.0+0.5;
+        gl_FragColor = vec4(r, g, b, t);
+
+            
+    }
+</script>
+
+<script id="shader-vs" type="x-shader/x-vertex">
+
+    attribute vec4 aVertexPosition;
+
+    uniform mat4 uMVMatrix;
+    uniform mat4 uPMatrix;
+    
+    uniform mat4 uR1Matrix;
+    uniform mat4 uR2Matrix;
+    uniform mat4 uR3Matrix;
+
+    varying vec4 xyzt;
+
+    void main(void) {
+        xyzt = aVertexPosition;
+        gl_Position = uPMatrix * uMVMatrix * (vec4(0.0, 0.0, 0.0, 8.0) + uR3Matrix * uR2Matrix * uR1Matrix * aVertexPosition);
+    }
+</script>
+
+
+<script type="text/javascript">
+    
+    var sin = Math.sin;
+    var cos = Math.cos;
+    var k = 3.1415926/180.0;
+
+    var gl;
+    function initGL(canvas) {
+        try {
+            gl = canvas.getContext("experimental-webgl");
+            gl.viewportWidth = canvas.width;
+            gl.viewportHeight = canvas.height;
+        } catch (e) {
+        }
+        if (!gl) {
+            alert("Could not initialise WebGL, sorry :-(");
+        }
+    }
+
+
+    function getShader(gl, id) {
+        var shaderScript = document.getElementById(id);
+        if (!shaderScript) {
+            return null;
+        }
+
+        var str = "";
+        var k = shaderScript.firstChild;
+        while (k) {
+            if (k.nodeType == 3) {
+                str += k.textContent;
+            }
+            k = k.nextSibling;
+        }
+
+        var shader;
+        if (shaderScript.type == "x-shader/x-fragment") {
+            shader = gl.createShader(gl.FRAGMENT_SHADER);
+        } else if (shaderScript.type == "x-shader/x-vertex") {
+            shader = gl.createShader(gl.VERTEX_SHADER);
+        } else {
+            return null;
+        }
+
+        gl.shaderSource(shader, str);
+        gl.compileShader(shader);
+
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+            alert(gl.getShaderInfoLog(shader));
+            return null;
+        }
+
+        return shader;
+    }
+
+
+    var shaderProgram;
+
+    function initShaders() {
+        var fragmentShader = getShader(gl, "shader-fs");
+        var vertexShader = getShader(gl, "shader-vs");
+
+        shaderProgram = gl.createProgram();
+        gl.attachShader(shaderProgram, vertexShader);
+        gl.attachShader(shaderProgram, fragmentShader);
+        gl.linkProgram(shaderProgram);
+
+        if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+            alert("Could not initialise shaders");
+        }
+
+        gl.useProgram(shaderProgram);
+
+        shaderProgram.vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");
+        gl.enableVertexAttribArray(shaderProgram.vertexPositionAttribute);
+
+        shaderProgram.pMatrixUniform  = gl.getUniformLocation(shaderProgram, "uPMatrix");
+        shaderProgram.mvMatrixUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
+
+        shaderProgram.r1MatrixUniform  = gl.getUniformLocation(shaderProgram, "uR1Matrix");
+        shaderProgram.r2MatrixUniform  = gl.getUniformLocation(shaderProgram, "uR2Matrix");
+        shaderProgram.r3MatrixUniform  = gl.getUniformLocation(shaderProgram, "uR3Matrix");
+    }
+
+    var mvMatrix = mat4.create();
+    var pMatrix  = mat4.create();
+    
+    function setMatrixUniforms(a1,a2, a3) {
+        gl.uniformMatrix4fv(shaderProgram.pMatrixUniform , false, pMatrix);
+        gl.uniformMatrix4fv(shaderProgram.mvMatrixUniform, false, mvMatrix);
+        
+        gl.uniformMatrix4fv(shaderProgram.r1MatrixUniform, false, rotX1X2( mouseX*3.14159));
+        gl.uniformMatrix4fv(shaderProgram.r2MatrixUniform, false, rotX2X3(-mouseY*3.14159));
+        gl.uniformMatrix4fv(shaderProgram.r3MatrixUniform, false, rotX3X4(a3));
+        
+    }
+
+    function rotX1X2(a) {
+        return mat4.fromValues(
+             cos(a), sin(a), 0, 0,
+            -sin(a), cos(a), 0, 0,
+                  0,      0, 1, 0,
+                  0,      0, 0, 1,
+        );
+    }
+
+    function rotX2X3(a) {
+        return mat4.fromValues(
+            1,      0,      0, 0,
+            0, cos(a), sin(a), 0,
+            0,-sin(a), cos(a), 0,
+            0,      0,      0, 1
+        );
+    }
+
+    function rotX1X3(a) {
+        return mat4.fromValues(
+            cos(a),      0, sin(a), 0,
+            0     ,      1,      0, 0,
+           -sin(a),      0, cos(a), 0,
+            0     ,      0,      0, 1
+        );
+    }
+
+    function rotX3X4(a) {
+        return mat4.fromValues(
+             1, 0,      0,      0, 
+             0, 1,      0,      0,
+             0, 0, cos(a), sin(a),
+             0, 0,-sin(a), cos(a),
+        );
+    }
+
+
+    var triangleVertexPositionBuffer;
+    var squareVertexPositionBuffer;
+
+    function generateMeridians(r) {
+        var s = 15.0;
+        var vertices = [];
+        for(var a1=0; a1<180; a1+=s) {
+            for(var a2=0; a2<180; a2+=s) {
+                for(var a3=0; a3<3600; a3+=s) {
+                    var x1 = r*cos(k*a1);
+                    var x2 = r*sin(k*a1)*cos(k*a2);
+                    var x3 = r*sin(k*a1)*sin(k*a2)*cos(k*a3);
+                    var x4 = r*sin(k*a1)*sin(k*a2)*sin(k*a3);
+                    vertices.push(x1);
+                    vertices.push(x2);
+                    vertices.push(x3);
+                    vertices.push(x4);
+                }
+            }
+        }
+        return vertices;
+    }
+
+
+    function generateRandom(r, cnt) {
+        vertices = []
+        for(var i=0; i<cnt; i++) {
+            a1 = Math.random()*180.0;
+            a2 = Math.random()*180.0;
+            a3 = Math.random()*360.0;
+            vertices.push(r*cos(k*a1));
+            vertices.push(r*sin(k*a1)*cos(k*a2));
+            vertices.push(r*sin(k*a1)*sin(k*a2)*cos(k*a3));
+            // vertices.push(r*sin(k*a1)*sin(k*a2)*sin(k*a3));
+            vertices.push(1.0);
+        }
+        return vertices;
+    }
+
+    function generateRandom2(r, cnt) {
+        vertices = []
+        for(var i=0; i<cnt; i++) {
+            a1 = Math.random()-0.5;
+            a2 = Math.random()-0.5;
+            a3 = Math.random()-0.5;
+            a4 = Math.random()-0.5;
+            l = Math.sqrt(a1*a1+a2*a2+a3*a3+a4*a4);
+            var n = r/l;
+            a1 *= n
+            a2 *= n;
+            a3 *= n;
+            a4 *= n;
+
+            vertices.push(a1);
+            vertices.push(a2);
+            vertices.push(Math.round(a3));
+            vertices.push(Math.round(a4));
+
+            vertices.push(Math.round(a1));
+            vertices.push(a2);
+            vertices.push(a3);
+            vertices.push(Math.round(a4));
+
+            vertices.push(a1);
+            vertices.push(Math.round(a2));
+            vertices.push(Math.round(a3));  
+            vertices.push(a4);
+
+            vertices.push(Math.round(a1));
+            vertices.push(Math.round(a2));
+            vertices.push(a3);
+            vertices.push(a4);
+
+            vertices.push(Math.round(a1));
+            vertices.push(a2);
+            vertices.push(Math.round(a3));  
+            vertices.push(a4);
+
+            vertices.push(a1);
+            vertices.push(Math.round(a2));
+            vertices.push(a3);
+            vertices.push(Math.round(a4));
+        }
+        return vertices;
+    }
+    
+    function initBuffers() {
+    triangleVertexPositionBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexPositionBuffer);
+        // var vertices = generateMeridians(5.0);
+        var vertices =generateRandom2(5.0, 30000);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+        triangleVertexPositionBuffer.itemSize = 4;
+        triangleVertexPositionBuffer.numItems = vertices.length/4;
+    }
+
+    var a1 = 0.0, a2 = 0.0, a3 = 0.0;
+    function drawScene() {
+
+        gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        
+        mat4.perspective(-pMatrix, 45, gl.viewportWidth / gl.viewportHeight, 0.0, 10000.0);
+        // mat4.ortho(pMatrix,-10, 10, -10, 10, 0.01, 100.0);
+        // mat4.fromTranslation(mvMatrix, [0.0, 0.0, -10.0]);
+        
+        gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexPositionBuffer);
+        gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, triangleVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+        
+        a1 += 0.001;
+        a2 += 0.002;
+        a3 += 0.01;
+        setMatrixUniforms(a1, a2, a3);
+
+        gl.drawArrays(gl.POINTS, 0, triangleVertexPositionBuffer.numItems);
+
+    }
+
+    function animate() {
+        gl.clearColor(0.0, 0.0, 0.0, 0.0);
+        //gl.enable(gl.DEPTH_TEST);
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+        drawScene();
+    }
+    var mouseX = 0;
+    var mouseY = 0;
+    function onMouseMove(e) {
+        var w = document.body.clientWidth;
+        var h = document.body.clientHeight;
+        mouseX = e.clientX/w-0.5;
+        mouseY = e.clientY/h-0.5;
+    }
+
+    function webGLStart() {
+        var canvas = document.getElementById("canvas");
+        initGL(canvas);
+        initShaders();
+        initBuffers();
+        setInterval(animate, 1000/60);
+        document.body.onmousemove = onMouseMove
+    }
+
+    
+
+</script>
+</head>
+
+
+<body onload="webGLStart();" style="background:black;">
+
+    <canvas 
+        id="canvas" 
+        style="border: none;position:absolute; margin: auto; left:0; top:0; bottom:0; right:0;" 
+        width="800" 
+        height="800"></canvas>
+
+</body>
+
+</html>
+
