@@ -2,6 +2,8 @@
 
 ![](screenshot.png)
 
+[video](https://youtu.be/BledY4mbKQY)
+
 * [01](https://ailove-lab.github.io/hyper/01.html)
 * [02](https://ailove-lab.github.io/hyper/02.html)
 * [03](https://ailove-lab.github.io/hyper/03.html)
